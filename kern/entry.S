@@ -8,7 +8,7 @@
 
 
 ###################################################################
-# The kernel (this code) is linked at address ~(KERNBASE + 1 Meg), 
+# The kernel (this code) is linked at address ~(KERNBASE + 1 Meg), @0x81000000 
 # but the bootloader loads it at address ~1 Meg.
 #	
 # RELOC(x) maps a symbol x from its link address to its actual
