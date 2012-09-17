@@ -19,6 +19,9 @@ pde_t *kern_pgdir;		// Kernel's initial page directory, this is VA
 struct Page *pages;		// Physical page state array
 static struct Page *page_free_list;	// Free list of physical pages
 
+// These variables are for lab3 
+struct Env *envs;
+
 // --------------------------------------------------------------
 // Detect machine's physical memory setup.
 // --------------------------------------------------------------
@@ -163,6 +166,9 @@ mem_init(void)
 	//////////////////////////////////////////////////////////////////////
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
 	// LAB 3: Your code here.
+	unsigned int size_envs = sizeof(struct Env) * NENV;
+	envs = boot_alloc(size_envs);
+	memset(envs, 0, size_envs);	
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -188,6 +194,7 @@ mem_init(void)
 	// Your code goes here:
 	// (**) PADDR(pages) is correct, I did page2pa(pages) all the time.... damn
 	boot_map_region(kern_pgdir, UPAGES, ROUNDUP(size_pages, PGSIZE), PADDR(pages), (PTE_W | PTE_P));
+
 //	{
 //		void *upages_bottom = (void *)UPAGES;
 //		int i = 0;
@@ -205,6 +212,7 @@ mem_init(void)
 	//    - the new image at UENVS  -- kernel R, user R
 	//    - envs itself -- kernel RW, user NONE
 	// LAB 3: Your code here.
+	boot_map_region(kern_pgdir, UENVS, ROUNDUP(size_envs, PGSIZE), PADDR(envs), (PTE_W | PTE_P));
 
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
@@ -441,7 +449,11 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 				return NULL;
 			memset(page2kva(newpage_table), 0, PGSIZE);
 			(newpage_table->pp_ref)++;
-			pgdir[PDX(va)] = (pde_t)page2pa(newpage_table) | PTE_W | PTE_P;
+//			pgdir[PDX(va)] = (pde_t)page2pa(newpage_table) | PTE_P;
+//			pgdir[PDX(va)] = (pde_t)page2pa(newpage_table) | PTE_U | PTE_P; 
+//			pgdir[PDX(va)] = (pde_t)page2pa(newpage_table) | PTE_W | PTE_P; //kernel RW
+			pgdir[PDX(va)] = (pde_t)page2pa(newpage_table) | PTE_W | PTE_U | PTE_P; //kernel/user RW
+
 			return &(((pte_t *)(page2kva(newpage_table)))[PTX(va)]);
 		}
 	}	
@@ -519,11 +531,12 @@ page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm)
 		if (!newpage_table) {
 			return -E_NO_MEM;
 		}
+		memset(page2kva(newpage_table), 0, PGSIZE);
 		(newpage_table->pp_ref)++;
 		pgdir[PDX(va)] = (pde_t) page2pa(newpage_table) | PTE_P | perm; 
 		pte_t *entry = pgdir_walk(pgdir, va, 0);
-		*entry = (pte_t)page2pa(pp) | PTE_P | perm; //TODO 
-//		((pte_t *)(page2kva(newpage_table)) )[PTX(va)] = (pte_t)page2pa(pp) | PTE_P | perm; //TODO
+		*entry = (pte_t)page2pa(pp) | PTE_P | perm;
+//		((pte_t *)(page2kva(newpage_table)) )[PTX(va)] = (pte_t)page2pa(pp) | PTE_P | perm;
 	}
 	(pp->pp_ref)++;
 	return 0;
@@ -839,7 +852,7 @@ check_kern_pgdir(void)
 			break;
 		}
 	}
-	cprintf("check_kern_pgdir() succeeded!\n");
+	cprintf("check_kern_pgdir() succeeded!\n\n");
 }
 
 // This function returns the physical address of the page containing 'va',
@@ -1046,5 +1059,5 @@ check_page_installed_pgdir(void)
 	// free the pages we took
 	page_free(pp0);
 
-	cprintf("check_page_installed_pgdir() succeeded!\n");
+	cprintf("check_page_installed_pgdir() succeeded!\n\n");
 }

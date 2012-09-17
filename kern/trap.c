@@ -65,6 +65,93 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
+	/// initialize the idt to point to each of entry point
+	// trap handler funtions defined in trapentry.S
+	
+	// exception handler
+	extern void trap_divide();
+	extern void trap_debug();
+	extern void trap_nmi();
+	extern void trap_brkpt();
+	extern void trap_oflow();
+	extern void trap_bound();
+	extern void trap_illop();
+	extern void trap_device();
+	extern void trap_dblflt();
+	//extern void trap_coproc();
+	extern void trap_tss();
+	extern void trap_segnp();
+	extern void trap_stack();
+	extern void trap_gpflt();
+	extern void trap_pgflt();
+	//extern void trap_res();
+	extern void trap_fperr();
+	extern void trap_align();
+	extern void trap_mchk();
+	extern void trap_simderr();
+	extern void trap_syscall();
+
+	// IRQ handlers
+	extern void irq0_handler();
+	extern void irq1_handler();
+	extern void irq2_handler();
+	extern void irq3_handler();
+	extern void irq4_handler();
+	extern void irq5_handler();
+	extern void irq6_handler();
+	extern void irq7_handler();
+	extern void irq8_handler();
+	extern void irq9_handler();
+	extern void irq10_handler();
+	extern void irq11_handler();
+	extern void irq12_handler();
+	extern void irq13_handler();
+	extern void irq14_handler();
+	extern void irq15_handler();
+
+			
+	SETGATE(idt[T_DIVIDE], 1, GD_KT, trap_divide, 0);
+	SETGATE(idt[T_DEBUG], 1, GD_KT, trap_debug, 0);
+	SETGATE(idt[T_NMI], 0, GD_KT, trap_nmi, 0);
+	SETGATE(idt[T_BRKPT], 1, GD_KT, trap_brkpt, 3);
+	SETGATE(idt[T_OFLOW], 1, GD_KT, trap_oflow, 0);
+	SETGATE(idt[T_BOUND], 1, GD_KT, trap_bound, 0);
+	SETGATE(idt[T_ILLOP], 1, GD_KT, trap_illop, 0);
+	SETGATE(idt[T_DEVICE], 1, GD_KT, trap_device, 0);
+	SETGATE(idt[T_DBLFLT], 1, GD_KT, trap_dblflt, 0);
+	//SETGATE(idt[T_COPROC], 0, GD_KT, trap_coproc, 0);
+	SETGATE(idt[T_TSS], 1, GD_KT, trap_tss, 0);
+	SETGATE(idt[T_SEGNP], 1, GD_KT, trap_segnp, 0);
+	SETGATE(idt[T_STACK], 1, GD_KT, trap_stack, 0);
+	SETGATE(idt[T_GPFLT], 1, GD_KT, trap_gpflt, 0);
+	SETGATE(idt[T_PGFLT], 1, GD_KT, trap_pgflt, 0);
+	//SETGATE(idt[T_RES], 0, GD_KT, trap_res, 0);
+	SETGATE(idt[T_FPERR], 1, GD_KT, trap_fperr, 0);
+	SETGATE(idt[T_ALIGN], 1, GD_KT, trap_align, 0);
+	SETGATE(idt[T_MCHK], 1, GD_KT, trap_mchk, 0);
+	SETGATE(idt[T_SIMDERR], 1, GD_KT, trap_simderr, 0);
+
+	//Initial system call entry
+	SETGATE(idt[T_SYSCALL], 1, GD_KT, trap_syscall, 3);
+
+	//Initial IRQ handlers
+	SETGATE(idt[IRQ_OFFSET], 0, GD_KT, irq0_handler, 0);
+	SETGATE(idt[IRQ_OFFSET + 1], 0, GD_KT, irq1_handler, 0);
+	SETGATE(idt[IRQ_OFFSET + 2], 0, GD_KT, irq2_handler, 0);
+	SETGATE(idt[IRQ_OFFSET + 3], 0, GD_KT, irq3_handler, 0);
+	SETGATE(idt[IRQ_OFFSET + 4], 0, GD_KT, irq4_handler, 0);
+	SETGATE(idt[IRQ_OFFSET + 5], 0, GD_KT, irq5_handler, 0);
+	SETGATE(idt[IRQ_OFFSET + 6], 0, GD_KT, irq6_handler, 0);
+	SETGATE(idt[IRQ_OFFSET + 7], 0, GD_KT, irq7_handler, 0);
+	SETGATE(idt[IRQ_OFFSET + 8], 0, GD_KT, irq8_handler, 0);
+	SETGATE(idt[IRQ_OFFSET + 9], 0, GD_KT, irq9_handler, 0);
+	SETGATE(idt[IRQ_OFFSET + 10], 0, GD_KT, irq10_handler, 0);
+	SETGATE(idt[IRQ_OFFSET + 11], 0, GD_KT, irq11_handler, 0);
+	SETGATE(idt[IRQ_OFFSET + 12], 0, GD_KT, irq12_handler, 0);
+	SETGATE(idt[IRQ_OFFSET + 13], 0, GD_KT, irq13_handler, 0);
+	SETGATE(idt[IRQ_OFFSET + 14], 0, GD_KT, irq14_handler, 0);
+	SETGATE(idt[IRQ_OFFSET + 15], 0, GD_KT, irq15_handler, 0);
+
 
 	// Per-CPU setup 
 	trap_init_percpu();
