@@ -134,6 +134,8 @@ monitor(struct Trapframe *tf)
 
 	while (1) {
 		buf = readline("K> ");
+		if (!strcmp(buf, "exit"))
+			break;
 		if (buf != NULL)
 			if (runcmd(buf, tf) < 0)
 				break;

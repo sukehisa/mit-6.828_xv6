@@ -228,9 +228,62 @@ print_regs(struct PushRegs *regs)
 static void
 trap_dispatch(struct Trapframe *tf)
 {
+	int flag = 1;
+	uint32_t eflags;
+	uint32_t eax;
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+	switch (tf->tf_trapno) {
 
+		case T_DIVIDE:
+		case T_DEBUG:
+		case T_NMI:
+			break;
+		case T_BRKPT:
+			eflags = read_eflags();
+			cprintf("elfags 0x%08x\n", eflags);
+			eflags |= FL_RF;
+			cprintf("elfags 0x%08x\n", eflags);
+			write_eflags(eflags);
+			monitor(tf);
+			break;
+		case T_OFLOW:
+		case T_BOUND:
+		case T_ILLOP:
+		case T_DEVICE:
+		case T_DBLFLT:
+//		case T_COPROC:
+		case T_TSS:
+		case T_SEGNP:
+		case T_STACK:
+		case T_GPFLT:
+			break;
+		case T_PGFLT:
+			cprintf("trap_dispatch: page fault\n");	
+			page_fault_handler(tf);
+			break;
+//		case T_RES:
+		case T_FPERR:
+		case T_ALIGN:
+		case T_MCHK:
+		case T_SIMDERR:
+			break;
+		case T_SYSCALL:
+			cprintf("trap_dispatch: system call\n");
+			eax = syscall(tf->tf_regs.reg_eax,
+					tf->tf_regs.reg_edx,
+					tf->tf_regs.reg_ecx,
+					tf->tf_regs.reg_ebx,
+					tf->tf_regs.reg_edi,
+					tf->tf_regs.reg_esi);
+			tf->tf_regs.reg_eax = eax;
+			break;
+		default:
+			flag = 0;
+			break;
+	}
+	if (flag)
+		return;
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)
@@ -253,7 +306,7 @@ trap(struct Trapframe *tf)
 	// the interrupt path.
 	assert(!(read_eflags() & FL_IF));
 
-	cprintf("Incoming TRAP frame at %p\n", tf);
+	cprintf("\nIncoming TRAP frame at %p\n", tf);
 
 	if ((tf->tf_cs & 3) == 3) {
 		// Trapped from user mode.
@@ -287,12 +340,18 @@ page_fault_handler(struct Trapframe *tf)
 	// Read processor's CR2 register to find the faulting address
 	fault_va = rcr2();
 
-	// Handle kernel-mode page faults.
-
 	// LAB 3: Your code here.
+	cprintf("In page_fault_handler!\n");
+
+	// Handle kernel-mode page faults.
+	// determine whether a fault happened in user or kernel mode 
+	// check the low 2 bits of cs
+	if ((tf->tf_cs & 3) == 0)
+		panic("page fault happened in kernel mode!");
 
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.
+	user_mem_assert(curenv, (void *)fault_va, PGSIZE, PTE_P);
 
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",

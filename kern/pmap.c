@@ -193,7 +193,7 @@ mem_init(void)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
 	// (**) PADDR(pages) is correct, I did page2pa(pages) all the time.... damn
-	boot_map_region(kern_pgdir, UPAGES, ROUNDUP(size_pages, PGSIZE), PADDR(pages), (PTE_W | PTE_P));
+	boot_map_region(kern_pgdir, UPAGES, ROUNDUP(size_pages, PGSIZE), PADDR(pages), (PTE_W | PTE_U | PTE_P));
 
 //	{
 //		void *upages_bottom = (void *)UPAGES;
@@ -212,7 +212,7 @@ mem_init(void)
 	//    - the new image at UENVS  -- kernel R, user R
 	//    - envs itself -- kernel RW, user NONE
 	// LAB 3: Your code here.
-	boot_map_region(kern_pgdir, UENVS, ROUNDUP(size_envs, PGSIZE), PADDR(envs), (PTE_W | PTE_P));
+	boot_map_region(kern_pgdir, UENVS, ROUNDUP(size_envs, PGSIZE), PADDR(envs), (PTE_W | PTE_U | PTE_P));
 
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
@@ -631,6 +631,18 @@ int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here.
+	uintptr_t va_base = ROUNDDOWN((uint32_t)va, PGSIZE);
+	uintptr_t va_top = ROUNDUP((uint32_t)va+len, PGSIZE); 
+
+	while (va_base < va_top) {
+		pte_t *entry = pgdir_walk(env->env_pgdir, (void *)va_base, 0);
+		if ((PTE_ADDR(*entry) >= ULIM) || (*entry & perm) != perm) {
+			user_mem_check_addr = (uint32_t)va;
+			return -E_FAULT;
+		}
+
+		va_base += PGSIZE;
+	}
 
 	return 0;
 }

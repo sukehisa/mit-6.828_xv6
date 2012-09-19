@@ -109,5 +109,3 @@ popl %es
 popl %ds
 iret
 
-
-
