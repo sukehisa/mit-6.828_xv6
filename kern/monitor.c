@@ -60,7 +60,18 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
+	extern char *bootstacktop;
+
 	// Your code here.
+	int *p = (int *) read_ebp();  // ebp of current function which means 'mon_backtrace'
+	cprintf("read_ebp: %08x\n read_esp: %08x\n read_eip %08x\n", read_ebp(), read_esp(), read_eip());
+	cprintf("bootstacktop: %08x\n", bootstacktop);
+
+	while (p < (int *) bootstacktop) {
+		p = (int *)*p;
+		cprintf("ebp %08x eip %08x args %08x %08x %08x %08x %08x \n", p, p, *(p-4), *(p-3), *(p-2), *(p-1), *p);
+	}
+	
 	return 0;
 }
 
@@ -123,6 +134,8 @@ monitor(struct Trapframe *tf)
 
 	while (1) {
 		buf = readline("K> ");
+		if (!strcmp(buf, "exit"))
+			break;
 		if (buf != NULL)
 			if (runcmd(buf, tf) < 0)
 				break;
