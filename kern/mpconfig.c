@@ -16,6 +16,7 @@ int ismp;
 int ncpu;
 
 // Per-CPU kernel stacks
+/// entry points to virtual addr e.g. percpu_kstacks[1]
 unsigned char percpu_kstacks[NCPU][KSTKSIZE]
 __attribute__ ((aligned(PGSIZE)));
 

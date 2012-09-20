@@ -37,14 +37,15 @@ i386_init(void)
 
 	// Lab 2 memory management initialization functions
 	mem_init();
+	for(;;); //debug
 
 	// Lab 3 user environment initialization functions
 	env_init();
 	trap_init();
 
 	// Lab 4 multiprocessor initialization functions
-	mp_init();
-	lapic_init();
+	mp_init();         // collect information about the multiprocessor system
+	lapic_init();      // initialize lapic & enable LAPIC build-in timer for preemptive multitasking
 
 	// Lab 4 multitasking initialization functions
 	pic_init();
@@ -78,6 +79,8 @@ i386_init(void)
 void *mpentry_kstack;
 
 // Start the non-boot (AP) processors.
+/// starts in real mode
+/// copies AP entry code(kern/mpentry.S) to memory location addressable in real-mode 
 static void
 boot_aps(void)
 {

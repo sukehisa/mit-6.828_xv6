@@ -268,7 +268,7 @@ trap_dispatch(struct Trapframe *tf)
 		case T_DIVIDE:
 		case T_DEBUG:
 		case T_NMI:
-			break;
+			goto unexpected;
 		case T_BRKPT:
 			eflags = read_eflags();
 			cprintf("elfags 0x%08x\n", eflags);
@@ -287,7 +287,7 @@ trap_dispatch(struct Trapframe *tf)
 		case T_SEGNP:
 		case T_STACK:
 		case T_GPFLT:
-			break;
+			goto unexpected;
 		case T_PGFLT:
 			cprintf("trap_dispatch: page fault\n");	
 			page_fault_handler(tf);
@@ -297,7 +297,7 @@ trap_dispatch(struct Trapframe *tf)
 		case T_ALIGN:
 		case T_MCHK:
 		case T_SIMDERR:
-			break;
+			goto unexpected;
 		case T_SYSCALL:
 			cprintf("trap_dispatch: system call\n");
 			eax = syscall(tf->tf_regs.reg_eax,
@@ -328,6 +328,7 @@ trap_dispatch(struct Trapframe *tf)
 	if (flag) // when the trap was expected 
 		return;
 	// Unexpected trap: The user process or the kernel has a bug.
+unexpected:
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)
 		panic("unhandled trap in kernel");
@@ -375,7 +376,7 @@ trap(struct Trapframe *tf)
 		// will restart at the trap point.
 		curenv->env_tf = *tf;
 		// The trapframe on the stack should be ignored from here on.
-		tf = &curenv->env_tf;
+		tf = &curenv->env_tf;	
 	}
 
 	// Record that tf is the last real trapframe so
