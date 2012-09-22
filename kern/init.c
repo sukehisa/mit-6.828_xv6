@@ -37,7 +37,6 @@ i386_init(void)
 
 	// Lab 2 memory management initialization functions
 	mem_init();
-	for(;;); //debug
 
 	// Lab 3 user environment initialization functions
 	env_init();
