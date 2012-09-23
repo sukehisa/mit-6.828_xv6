@@ -282,7 +282,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	env_free_list = e->env_link;
 	*newenv_store = e;
 
-	cprintf("[%08x] new env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
+	cprintf("*[%08x] new env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
 	return 0;
 }
 
@@ -391,7 +391,7 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 		if (ph->p_type == ELF_PROG_LOAD) {
 			region_alloc(e, (void *)ph->p_va, ph->p_memsz);
 
-			cprintf("from va %p, for %08x\n", (void *)ph->p_va, ph->p_memsz);//deb
+	//		cprintf("from va %p, for %08x\n", (void *)ph->p_va, ph->p_memsz);//deb
 			// copying section to ph->p_va, for p_memsz
 			memmove((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
 			// zero-clear bss segment
@@ -570,6 +570,8 @@ env_run(struct Env *e)
 	e->env_status = ENV_RUNNING;
 	(e->env_runs)++;	
 	lcr3(PADDR(e->env_pgdir)); 
+
+	unlock_kernel();
 	// Step2
 	env_pop_tf(&(e->env_tf)); 
 

@@ -1118,6 +1118,6 @@ check_page_installed_pgdir(void)
 	page_free(pp0);
 	
 	cprintf("*******************************************\n");
-	cprintf("check_page_installed_pgdir() succeeded!\n\n");
+	cprintf("check_page_installed_pgdir() succeeded!\n");
 	cprintf("*******************************************\n");
 }

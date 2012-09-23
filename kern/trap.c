@@ -268,7 +268,7 @@ trap_dispatch(struct Trapframe *tf)
 {
 	int flag = 1;
 	uint32_t eflags;
-	uint32_t eax;
+	int eax;
 
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
@@ -315,6 +315,8 @@ trap_dispatch(struct Trapframe *tf)
 					tf->tf_regs.reg_edi,
 					tf->tf_regs.reg_esi);
 			tf->tf_regs.reg_eax = eax;
+			if (eax < 0)
+				goto unexpected;
 			break;
 		// Handle spurious interrupts
 		// The hardware sometimes raises these because of noise on the
@@ -370,8 +372,8 @@ trap(struct Trapframe *tf)
 		// Acquire the big kernel lock before doing any
 		// serious kernel work.
 		// LAB 4: Your code here.
+		lock_kernel();
 		assert(curenv);
-
 		// Garbage collect if current enviroment is a zombie
 		if (curenv->env_status == ENV_DYING) {
 			env_free(curenv);

@@ -285,6 +285,19 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		case SYS_env_destroy:
 			cprintf("sys_env_destroy\n");
 			return sys_env_destroy((envid_t) a1);
+		case SYS_page_alloc:
+		case SYS_page_map:
+		case SYS_page_unmap:
+		case SYS_exofork:
+		case SYS_env_set_status:
+		case SYS_env_set_pgfault_upcall:
+			return -E_INVAL;
+		case SYS_yield:
+			cprintf("sys_yield\n");
+			sys_yield();
+			return 0;
+		case SYS_ipc_try_send:
+		case SYS_ipc_recv:
 		case NSYSCALLS: // What's this?? TODO	
 			return -E_INVAL;
 		default:	
