@@ -49,7 +49,6 @@ sched_yield(void)
 			next = curenv;
 		}
 	}
-
 	if (next != NULL)
 		env_run(next);
 

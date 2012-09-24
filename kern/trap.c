@@ -266,9 +266,7 @@ print_regs(struct PushRegs *regs)
 static void
 trap_dispatch(struct Trapframe *tf)
 {
-	int flag = 1;
 	uint32_t eflags;
-	int eax;
 
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
@@ -307,16 +305,12 @@ trap_dispatch(struct Trapframe *tf)
 		case T_SIMDERR:
 			goto unexpected;
 		case T_SYSCALL:
-			cprintf("trap_dispatch: system call\n");
-			eax = syscall(tf->tf_regs.reg_eax,
+			tf->tf_regs.reg_eax = syscall(tf->tf_regs.reg_eax,
 					tf->tf_regs.reg_edx,
 					tf->tf_regs.reg_ecx,
 					tf->tf_regs.reg_ebx,
 					tf->tf_regs.reg_edi,
 					tf->tf_regs.reg_esi);
-			tf->tf_regs.reg_eax = eax;
-			if (eax < 0)
-				goto unexpected;
 			break;
 		// Handle spurious interrupts
 		// The hardware sometimes raises these because of noise on the
@@ -326,17 +320,15 @@ trap_dispatch(struct Trapframe *tf)
 			print_trapframe(tf);
 			break;
 		default:
-			flag = 0;
+			goto unexpected;
 			break;
 	}
 
+	return;
 	// Handle clock interrupts. Don't forget to acknowledge the
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
 
-
-	if (flag) // when the trap was expected 
-		return;
 	// Unexpected trap: The user process or the kernel has a bug.
 unexpected:
 	print_trapframe(tf);
@@ -365,7 +357,7 @@ trap(struct Trapframe *tf)
 	// the interrupt path.
 	assert(!(read_eflags() & FL_IF));
 
-	cprintf("\nIncoming TRAP frame at %p\n", tf);
+//	cprintf("*Incoming TRAP frame at %p\n", tf);
 
 	if ((tf->tf_cs & 3) == 3) {
 		// Trapped from user mode.

@@ -585,7 +585,7 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 	pte_t *entry = pgdir_walk(pgdir, va, 0);
 	if (entry == NULL)
 		return NULL;
-	struct Page *page = pa2page((physaddr_t)entry);
+	struct Page *page = pa2page((physaddr_t)*entry);
 	if (pte_store) 
 		*pte_store = entry;
 	return page;
