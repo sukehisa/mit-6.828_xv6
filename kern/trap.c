@@ -295,7 +295,7 @@ trap_dispatch(struct Trapframe *tf)
 		case T_GPFLT:
 			goto unexpected;
 		case T_PGFLT:
-			cprintf("trap_dispatch: page fault\n");	
+			cprintf("trap_dispatch: page fault\n");		
 			page_fault_handler(tf);
 			break;
 //		case T_RES:
@@ -357,7 +357,8 @@ trap(struct Trapframe *tf)
 	// the interrupt path.
 	assert(!(read_eflags() & FL_IF));
 
-//	cprintf("*Incoming TRAP frame at %p\n", tf);
+	cprintf("**Incoming TRAP frame at %p**\n", tf);
+//	cprintf("errno: %x\n", tf->tf_trapno);
 
 	if ((tf->tf_cs & 3) == 3) {
 		// Trapped from user mode.
@@ -407,17 +408,18 @@ page_fault_handler(struct Trapframe *tf)
 	fault_va = rcr2();
 
 	// LAB 3: Your code here.
-	cprintf("In page_fault_handler!\n");
+	//	cprintf("In page_fault_handler! %08x\n", fault_va);
+	//user_mem_assert(curenv, (void *)fault_va, PGSIZE, PTE_P); //What's this??ToDo
 
 	// Handle kernel-mode page faults.
 	// determine whether a fault happened in user or kernel mode 
 	// check the low 2 bits of cs
-	if ((tf->tf_cs & 3) == 0)
+	if ((tf->tf_cs & 0x0003) == 0)
 		panic("page fault happened in kernel mode!");
 
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.
-	user_mem_assert(curenv, (void *)fault_va, PGSIZE, PTE_P);
+
 
 	// Call the environment's page fault upcall, if one exists.  Set up a
 	// page fault stack frame on the user exception stack (below
@@ -435,9 +437,11 @@ page_fault_handler(struct Trapframe *tf)
 	// the new stack frame because the exception stack _is_ the trap-time
 	// stack.
 	//
-	// If there's no page fault upcall, the environment didn't allocate a
-	// page for its exception stack or can't write to it, or the exception
-	// stack overflows, then destroy the environment that caused the fault.
+	// If there's no page fault upcall, 
+	// the environment didn't allocate a page for its exception stack 
+	// or can't write to it,
+	// or the exception stack overflows, 
+	// then destroy the environment that caused the fault.
 	// Note that the grade script assumes you will first check for the page
 	// fault upcall and print the "user fault va" message below if there is
 	// none.  The remaining three checks can be combined into a single test.
@@ -448,10 +452,41 @@ page_fault_handler(struct Trapframe *tf)
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
 	// LAB 4: Your code here.
+	if (curenv->env_pgfault_upcall) {	
+		// some checkings
+		user_mem_assert(curenv, (void *)(UXSTACKTOP-PGSIZE), PGSIZE, PTE_W);
+		if (!page_lookup(curenv->env_pgdir, (void *)(UXSTACKTOP-PGSIZE), NULL))
+			env_destroy(curenv);
+
+		struct UTrapframe *utrapframe;
+		// if this is recursive call to pgfault_upcall, make some space
+		if (tf->tf_esp >= (UXSTACKTOP-PGSIZE) && tf->tf_esp < UXSTACKTOP) 
+			utrapframe = (void *)tf->tf_esp - 4;
+		else 
+			utrapframe = (struct UTrapframe *)UXSTACKTOP;
+		utrapframe = (void *)utrapframe - sizeof(struct UTrapframe);
+
+		// stack overflow
+		if ((uint32_t)utrapframe < (UXSTACKTOP-PGSIZE)) {
+			cprintf("[%08x] user exception stack overflowed\n", curenv->env_id);
+			env_destroy(curenv);
+		}
+		
+		utrapframe->utf_fault_va = fault_va;
+		utrapframe->utf_err = tf->tf_err;
+		utrapframe->utf_regs = tf->tf_regs;
+		utrapframe->utf_eip = tf->tf_eip;
+		utrapframe->utf_eflags = tf->tf_eflags;
+		utrapframe->utf_esp = tf->tf_esp;
+
+		tf->tf_esp = (uintptr_t)utrapframe;
+		tf->tf_eip = (uintptr_t) curenv->env_pgfault_upcall;
+		env_run(curenv);
+	}
 
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
-		curenv->env_id, fault_va, tf->tf_eip);
+			curenv->env_id, fault_va, tf->tf_eip);
 	print_trapframe(tf);
 	env_destroy(curenv);
 }

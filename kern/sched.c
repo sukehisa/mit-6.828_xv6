@@ -44,7 +44,7 @@ sched_yield(void)
 	}
 
 	if (curenv != NULL) {
-		if (next == NULL && curenv->env_status == ENV_RUNNABLE && 
+		if (next == NULL && curenv->env_status == ENV_RUNNING && 
 				curenv->env_type != ENV_TYPE_IDLE) {
 			next = curenv;
 		}

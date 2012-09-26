@@ -145,6 +145,12 @@ static int
 sys_env_set_pgfault_upcall(envid_t envid, void *func)
 {
 	// LAB 4: Your code here.
+	struct Env *env;
+	int r;
+	if ((r = envid2env(envid, &env, 1)) < 0) 
+		return -E_BAD_ENV;
+	env->env_pgfault_upcall = func;
+	return 0;
 	panic("sys_env_set_pgfault_upcall not implemented");
 }
 
@@ -348,37 +354,38 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// LAB 3: Your code here.
 	switch (syscallno) {
 		case SYS_cputs:
-//			cprintf("sys_cputs\n");
+			cprintf("sys_cputs\n");
 			sys_cputs((char *)a1, a2);
 			return 0;
 		case SYS_cgetc:
-//			cprintf("sys_cgetc\n");
+			cprintf("sys_cgetc\n");
 			return sys_cgetc();
 		case SYS_getenvid:
-//			cprintf("sys_getenvid:%d\n", sys_getenvid());
+			cprintf("sys_getenvid:%d\n", sys_getenvid());
 			return sys_getenvid();
 		case SYS_env_destroy:
-//			cprintf("sys_env_destroy\n");
+			cprintf("sys_env_destroy\n");
 			return sys_env_destroy((envid_t) a1);
 		case SYS_page_alloc:
-//			cprintf("sys_page_alloc\n");
+			cprintf("sys_page_alloc\n");
 			return sys_page_alloc(a1, (void *)a2, a3);
 		case SYS_page_map:
-//			cprintf("sys_page_map\n");
+			cprintf("sys_page_map\n");
 			return sys_page_map(a1, (void *)a2, a3, (void *)a4, a5);
 		case SYS_page_unmap:
-//			cprintf("sys_page_unmap\n");
+			cprintf("sys_page_unmap\n");
 			return sys_page_unmap(a1, (void *)a2);
 		case SYS_exofork:
-//			cprintf("sys_exofork\n");
+			cprintf("sys_exofork\n");
 			return sys_exofork();
 		case SYS_env_set_status:
-//			cprintf("sys_env_set_status\n");
+			cprintf("sys_env_set_status\n");
 			return sys_env_set_status(a1, a2);
 		case SYS_env_set_pgfault_upcall:			
-			return -E_INVAL;
+			cprintf("sys_env_set_pgfault_upcall\n");
+			return sys_env_set_pgfault_upcall(a1, (void *)a2);
 		case SYS_yield:
-//			cprintf("sys_yield\n");
+			cprintf("sys_yield\n");
 			sys_yield();
 			return 0;
 		case SYS_ipc_try_send:
