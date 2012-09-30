@@ -92,6 +92,7 @@ sys_exofork(void)
 
 	env->env_status = ENV_NOT_RUNNABLE;
 	env->env_tf = curenv->env_tf;
+	// new environment return 0
 	env->env_tf.tf_regs.reg_eax = 0;
 	return env->env_id;
 
@@ -189,13 +190,19 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 		return -E_NO_MEM;
 	memset(page2kva(page), 0, PGSIZE);
 
-	if ((uint32_t)va > UTOP || ((uint32_t)va % PGSIZE) != 0)
+	if ((uint32_t)va > UTOP || ((uint32_t)va % PGSIZE) != 0) {
+		page_free(page);
 		return -E_INVAL;
-	if (!(perm ^ PTE_SYSCALL))
+	}
+	if (!(perm ^ PTE_SYSCALL)) {
+		page_free(page);
 		return -E_INVAL;
+	}
 
-	if (page_insert(env->env_pgdir, page, va, perm) < 0)
+	if (page_insert(env->env_pgdir, page, va, perm) < 0) {
+		page_free(page);
 		return -E_NO_MEM;
+	}
 
 	return 0;
 	
@@ -246,13 +253,14 @@ sys_page_map(envid_t srcenvid, void *srcva,
 		return -E_INVAL;
 	if ((perm & PTE_W) && !((*entry & PTE_W) == PTE_W))
 		return -E_INVAL;
-
 	if (page_insert(dstenv->env_pgdir, srcpage, dstva, perm) < 0)
 		return -E_NO_MEM;
+
 	return 0;
 
 	panic("sys_page_map not implemented");
 }
+
 
 // Unmap the page of memory at 'va' in the address space of 'envid'.
 // If no page is mapped, the function silently succeeds.
@@ -354,38 +362,38 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// LAB 3: Your code here.
 	switch (syscallno) {
 		case SYS_cputs:
-			cprintf("sys_cputs\n");
+//			cprintf("sys_cputs\n");
 			sys_cputs((char *)a1, a2);
 			return 0;
 		case SYS_cgetc:
-			cprintf("sys_cgetc\n");
+//			cprintf("sys_cgetc\n");
 			return sys_cgetc();
 		case SYS_getenvid:
-			cprintf("sys_getenvid:%d\n", sys_getenvid());
+//			cprintf("sys_getenvid:%d\n", sys_getenvid());
 			return sys_getenvid();
 		case SYS_env_destroy:
-			cprintf("sys_env_destroy\n");
+//			cprintf("sys_env_destroy\n");
 			return sys_env_destroy((envid_t) a1);
 		case SYS_page_alloc:
-			cprintf("sys_page_alloc\n");
+//			cprintf("sys_page_alloc\n");
 			return sys_page_alloc(a1, (void *)a2, a3);
 		case SYS_page_map:
-			cprintf("sys_page_map\n");
+//			cprintf("sys_page_map\n");
 			return sys_page_map(a1, (void *)a2, a3, (void *)a4, a5);
 		case SYS_page_unmap:
-			cprintf("sys_page_unmap\n");
+//			cprintf("sys_page_unmap\n");
 			return sys_page_unmap(a1, (void *)a2);
 		case SYS_exofork:
-			cprintf("sys_exofork\n");
+//			cprintf("sys_exofork\n");
 			return sys_exofork();
 		case SYS_env_set_status:
-			cprintf("sys_env_set_status\n");
+//			cprintf("sys_env_set_status\n");
 			return sys_env_set_status(a1, a2);
 		case SYS_env_set_pgfault_upcall:			
-			cprintf("sys_env_set_pgfault_upcall\n");
+//			cprintf("sys_env_set_pgfault_upcall\n");
 			return sys_env_set_pgfault_upcall(a1, (void *)a2);
 		case SYS_yield:
-			cprintf("sys_yield\n");
+//			cprintf("sys_yield\n");
 			sys_yield();
 			return 0;
 		case SYS_ipc_try_send:

@@ -42,15 +42,15 @@ sched_yield(void)
 			break;
 		}
 	}
-
 	if (curenv != NULL) {
 		if (next == NULL && curenv->env_status == ENV_RUNNING && 
 				curenv->env_type != ENV_TYPE_IDLE) {
 			next = curenv;
 		}
 	}
-	if (next != NULL)
+	if (next != NULL) {
 		env_run(next);
+	}
 
 	// For debugging and testing purposes, if there are no
 	// runnable environments other than the idle environments,

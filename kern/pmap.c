@@ -195,7 +195,8 @@ mem_init(void)
 	// Your code goes here:
 	// (**) PADDR(pages) is correct, I did page2pa(pages) all the time.... damn
 	boot_map_region(kern_pgdir, (uintptr_t)pages, sizeof(struct Page)*npages, PADDR(pages), (PTE_W |  PTE_P));	
-	boot_map_region(kern_pgdir, UPAGES, sizeof(struct Page)*npages, PADDR(pages), (PTE_W | PTE_U | PTE_P));
+//	boot_map_region(kern_pgdir, UPAGES, sizeof(struct Page)*npages, PADDR(pages), (PTE_W | PTE_U | PTE_P));
+	boot_map_region(kern_pgdir, UPAGES, sizeof(struct Page)*npages, PADDR(pages), (PTE_U | PTE_P));
 
 	//////////////////////////////////////////////////////////////////////
 	// Map the 'envs' array read-only by the user at linear address UENVS
@@ -204,7 +205,7 @@ mem_init(void)
 	//    - the new image at UENVS  -- kernel R, user R
 	//    - envs itself -- kernel RW, user NONE
 	// LAB 3: Your code here.
-	boot_map_region(kern_pgdir, (uintptr_t)envs, sizeof(struct Env)*NENV, PADDR(envs), (PTE_W | PTE_U | PTE_P));
+	boot_map_region(kern_pgdir, (uintptr_t)envs, sizeof(struct Env)*NENV, PADDR(envs), (PTE_W | PTE_P));
 	boot_map_region(kern_pgdir, UENVS,  sizeof(struct Env)*NENV, PADDR(envs), (PTE_W | PTE_U | PTE_P));
 
 	//////////////////////////////////////////////////////////////////////
@@ -289,6 +290,7 @@ mem_init_mp(void)
 	/// percpu_kstacks[i] points to the bottom of stack. I thought this was the top of stack 
 	/// it took so much time to notice this
 	int i;
+
 	for (i = 0; i < NCPU; i++) {	
 		boot_map_region(kern_pgdir, KSTACKTOP - (i+1)*(KSTKSIZE+KSTKGAP)+KSTKGAP,
 				KSTKSIZE, (physaddr_t)PADDR(percpu_kstacks[i]), (PTE_W | PTE_P));
@@ -535,37 +537,100 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 // Hint: The TA solution is implemented using pgdir_walk, page_remove,
 // and page2pa.
 //
+//int
+//page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm)
+//{
+//	// Fill this function in	
+//	pde_t *pgdir_entry = &pgdir[PDX(va)];
+//	if (*pgdir_entry) {
+//		pte_t *ptbl_entry = &((pte_t *)(KADDR(PTE_ADDR(*pgdir_entry))))[PTX(va)];
+//		if (*ptbl_entry) {  // already page mapped at va
+//			if (PTE_ADDR(*ptbl_entry) == page2pa(pp)) { 
+//				*ptbl_entry = (pte_t) page2pa(pp) | PTE_P | perm; 
+//				*pgdir_entry = PTE_ADDR(*pgdir_entry) | PTE_P | perm;
+//				return 0;
+//			}
+//			page_remove(pgdir, va); 
+//		}
+//		*ptbl_entry = (pte_t) page2pa(pp) | PTE_P | perm; 
+//	} else {
+//		struct Page *newpage_table = page_alloc(0); //for pgdir entry
+//		if (!newpage_table) {
+//			return -E_NO_MEM;
+//		}
+//		memset(page2kva(newpage_table), 0, PGSIZE);
+//		(newpage_table->pp_ref)++;
+//		pgdir[PDX(va)] = (pde_t) page2pa(newpage_table) | PTE_P | perm; 
+//		pte_t *entry = pgdir_walk(pgdir, va, 0);
+//		*entry = (pte_t)page2pa(pp) | PTE_P | perm;
+////		((pte_t *)(page2kva(newpage_table)) )[PTX(va)] = (pte_t)page2pa(pp) | PTE_P | perm;
+//	}
+//	(pp->pp_ref)++;
+//	return 0;
+//}
+
+
 int
 page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm)
 {
-	// Fill this function in	
-	pde_t *pgdir_entry = &pgdir[PDX(va)];
-	if (*pgdir_entry) {
-		pte_t *ptbl_entry = &((pte_t *)(KADDR(PTE_ADDR(*pgdir_entry))))[PTX(va)];
-		if (*ptbl_entry) {  // already page mapped at va
-			if (PTE_ADDR(*ptbl_entry) == page2pa(pp)) { 
-				*ptbl_entry = (pte_t) page2pa(pp) | PTE_P | perm; 
-				*pgdir_entry = PTE_ADDR(*pgdir_entry) | PTE_P | perm;
-				return 0;
-			}
-			page_remove(pgdir, va); 
-		}
-		*ptbl_entry = (pte_t) page2pa(pp) | PTE_P | perm; 
-	} else {
-		struct Page *newpage_table = page_alloc(0); //for pgdir entry
-		if (!newpage_table) {
-			return -E_NO_MEM;
-		}
-		memset(page2kva(newpage_table), 0, PGSIZE);
-		(newpage_table->pp_ref)++;
-		pgdir[PDX(va)] = (pde_t) page2pa(newpage_table) | PTE_P | perm; 
-		pte_t *entry = pgdir_walk(pgdir, va, 0);
-		*entry = (pte_t)page2pa(pp) | PTE_P | perm;
-//		((pte_t *)(page2kva(newpage_table)) )[PTX(va)] = (pte_t)page2pa(pp) | PTE_P | perm;
+	assert(pgdir);
+	assert(pp);
+
+	// Fill this function in
+	pte_t *pte = pgdir_walk(pgdir, va, 1);
+	if (!pte)
+		return -E_NO_MEM;
+
+	physaddr_t pa = page2pa(pp);
+
+	// Already exist, remove it!
+	if (*pte & PTE_P) {
+		// Same map reinsertion, ONLY permission needs change.
+		if (PTE_ADDR(*pte) == pa)
+			goto SUCCESS;
+
+		// Different map insertion, so remove the old one.
+		page_remove(pgdir, va);
 	}
-	(pp->pp_ref)++;
+
+	// Add refcount.
+	pp->pp_ref++;
+
+	// Cached
+	tlb_invalidate(pgdir, va);
+
+SUCCESS:
+	// Set PTE with new permissions.
+	*pte = pa | perm | PTE_P;
+
 	return 0;
 }
+
+
+//// TODO: This is copied from someone's code, fix mine...
+//int
+//page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm)
+//{
+//	pte_t *pte = pgdir_walk(pgdir, va, 0);
+//    physaddr_t ppa = page2pa(pp);
+//
+//    if (pte != NULL) {
+//        // for page alreay mapped
+//        if (*pte & PTE_P)
+//            page_remove(pgdir, va); // also invalidates tlb
+//        if (page_free_list == pp) 
+//            page_free_list = page_free_list->pp_link; 
+//    } else {
+//	    pte = pgdir_walk(pgdir, va, 1);
+//	    if (!pte)
+//		    return -E_NO_MEM;
+//    }
+//	*pte = page2pa(pp) | perm | PTE_P;
+//	pp->pp_ref++;
+//    tlb_invalidate(pgdir, va);
+//	return 0;
+//}
+
 
 //
 // Return the page mapped at virtual address 'va'.

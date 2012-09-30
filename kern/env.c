@@ -408,7 +408,7 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 	// at virtual address USTACKTOP - PGSIZE.
 	// LAB 3: Your code here.
 	struct Page *program_stack = page_alloc(0);
-	page_insert(e->env_pgdir, program_stack, (void *)(USTACKTOP-PGSIZE), (PTE_U | PTE_W));	
+	page_insert(e->env_pgdir, program_stack, (void *)(USTACKTOP-PGSIZE), (PTE_U | PTE_W | PTE_P));	
 
 	lcr3(old_cr3);
 }
@@ -452,6 +452,7 @@ env_free(struct Env *e)
 
 	// Flush all mapped pages in the user portion of the address space
 	static_assert(UTOP % PTSIZE == 0);
+
 	for (pdeno = 0; pdeno < PDX(UTOP); pdeno++) {
 
 		// only look at mapped page tables
@@ -473,10 +474,12 @@ env_free(struct Env *e)
 		e->env_pgdir[pdeno] = 0;
 	}
 
+
 	// free the page directory
 	pa = PADDR(e->env_pgdir);
 	e->env_pgdir = 0;
 	page_decref(pa2page(pa));
+
 
 	// return the environment to the free list
 	e->env_status = ENV_FREE;
@@ -563,14 +566,12 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 
 	// LAB 3: Your code here.
-	// Step1
 	if (curenv != NULL && (curenv->env_status == ENV_RUNNING)) 
 		curenv->env_status = ENV_RUNNABLE;
 	curenv = e;
 	e->env_status = ENV_RUNNING;
 	(e->env_runs)++;	
 	lcr3(PADDR(e->env_pgdir)); 
-
 	unlock_kernel();
 	// Step2
 	env_pop_tf(&(e->env_tf)); 

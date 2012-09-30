@@ -1,6 +1,7 @@
 #include <inc/mmu.h>
 #include <inc/x86.h>
 #include <inc/assert.h>
+#include <inc/string.h>
 
 #include <kern/pmap.h>
 #include <kern/trap.h>
@@ -295,7 +296,7 @@ trap_dispatch(struct Trapframe *tf)
 		case T_GPFLT:
 			goto unexpected;
 		case T_PGFLT:
-			cprintf("trap_dispatch: page fault\n");		
+			//cprintf("trap_dispatch: page fault\n");		
 			page_fault_handler(tf);
 			break;
 //		case T_RES:
@@ -357,7 +358,7 @@ trap(struct Trapframe *tf)
 	// the interrupt path.
 	assert(!(read_eflags() & FL_IF));
 
-	cprintf("**Incoming TRAP frame at %p**\n", tf);
+//	cprintf("**Incoming TRAP frame at %p**\n", tf);
 //	cprintf("errno: %x\n", tf->tf_trapno);
 
 	if ((tf->tf_cs & 3) == 3) {
@@ -392,7 +393,7 @@ trap(struct Trapframe *tf)
 	// If we made it to this point, then no other environment was
 	// scheduled, so we should return to the current environment
 	// if doing so makes sense.
-	if (curenv && curenv->env_status == ENV_RUNNING)
+	if (curenv && curenv->env_status == ENV_RUNNING) 
 		env_run(curenv);
 	else
 		sched_yield();
@@ -408,7 +409,7 @@ page_fault_handler(struct Trapframe *tf)
 	fault_va = rcr2();
 
 	// LAB 3: Your code here.
-	//	cprintf("In page_fault_handler! %08x\n", fault_va);
+	cprintf("\n[%08x]In page_fault_handler! fault_va:%08x\n", curenv->env_id, fault_va);
 	//user_mem_assert(curenv, (void *)fault_va, PGSIZE, PTE_P); //What's this??ToDo
 
 	// Handle kernel-mode page faults.
@@ -421,8 +422,8 @@ page_fault_handler(struct Trapframe *tf)
 	// the page fault happened in user mode.
 
 
-	// Call the environment's page fault upcall, if one exists.  Set up a
-	// page fault stack frame on the user exception stack (below
+	// Call the environment's page fault upcall, if one exists.  
+	// Set up a page fault stack frame on the user exception stack (below
 	// UXSTACKTOP), then branch to curenv->env_pgfault_upcall.
 	//
 	// The page fault upcall might cause another page fault, in which case
@@ -453,34 +454,63 @@ page_fault_handler(struct Trapframe *tf)
 
 	// LAB 4: Your code here.
 	if (curenv->env_pgfault_upcall) {	
+		cprintf("upcall found\n"); //deb
 		// some checkings
 		user_mem_assert(curenv, (void *)(UXSTACKTOP-PGSIZE), PGSIZE, PTE_W);
 		if (!page_lookup(curenv->env_pgdir, (void *)(UXSTACKTOP-PGSIZE), NULL))
 			env_destroy(curenv);
 
-		struct UTrapframe *utrapframe;
+		void *dststack;
 		// if this is recursive call to pgfault_upcall, make some space
 		if (tf->tf_esp >= (UXSTACKTOP-PGSIZE) && tf->tf_esp < UXSTACKTOP) 
-			utrapframe = (void *)tf->tf_esp - 4;
+			dststack = (void *)tf->tf_esp - 4;
 		else 
-			utrapframe = (struct UTrapframe *)UXSTACKTOP;
-		utrapframe = (void *)utrapframe - sizeof(struct UTrapframe);
+			dststack = (void *)UXSTACKTOP;
+		dststack -= sizeof(struct UTrapframe);
 
 		// stack overflow
-		if ((uint32_t)utrapframe < (UXSTACKTOP-PGSIZE)) {
+		if ((uint32_t)dststack < (UXSTACKTOP-PGSIZE)) {
 			cprintf("[%08x] user exception stack overflowed\n", curenv->env_id);
 			env_destroy(curenv);
 		}
-		
-		utrapframe->utf_fault_va = fault_va;
-		utrapframe->utf_err = tf->tf_err;
-		utrapframe->utf_regs = tf->tf_regs;
-		utrapframe->utf_eip = tf->tf_eip;
-		utrapframe->utf_eflags = tf->tf_eflags;
-		utrapframe->utf_esp = tf->tf_esp;
 
-		tf->tf_esp = (uintptr_t)utrapframe;
+//		cprintf("[%08x] dststack:%08x\n", curenv->env_id, dststack); //deb
+//		pte_t *pte;
+//		pde_t *pde;
+//
+//		if (page_lookup(curenv->env_pgdir, (void *)dststack, &pte))
+//			cprintf("curenv:pte of dststack: %08x\n", *pte);
+//		if (page_lookup(kern_pgdir, (void *)dststack, &pte))
+//			cprintf("kernel:pte of dststack: %08x\n", *pte);
+//		pde = &curenv->env_pgdir[PDX((void *)dststack)];
+//		cprintf("curenv:pde of dststack: %08x\n", *pde);
+//		*pde = *pde | PTE_W
+//		pde = &kern_pgdir[PDX((void *)dststack)];
+//		cprintf("kernel:pde of dststack: %08x\n", *pde);
+//		cprintf("\n");
+//		if (page_lookup(curenv->env_pgdir, (void *)(0xeebfdf50), &pte))
+//			cprintf("curenv:pte of userstack: %08x\n", *pte);
+//		if (page_lookup(kern_pgdir, (void *)(0xeebfdf50), &pte))
+//			cprintf("kernel:pte of userstack: %08x\n", *pte);
+
+		struct UTrapframe *udststack = (struct UTrapframe *)dststack;
+//		pde_t *pde;
+//		pde = &curenv->env_pgdir[PDX((void *)dststack)];
+//		*pde = *pde | PTE_W | PTE_U | PTE_P;
+//		pde = &curenv->env_pgdir[PDX((void *)fault_va)];
+//		*pde = *pde | PTE_W | PTE_U | PTE_P;
+		lcr3(PADDR(curenv->env_pgdir));
+		udststack->utf_err = tf->tf_err;
+		udststack->utf_fault_va = fault_va;
+		udststack->utf_regs = tf->tf_regs;
+		udststack->utf_eip = tf->tf_eip;
+		udststack->utf_eflags = tf->tf_eflags;
+		udststack->utf_esp = tf->tf_esp;
+		lcr3(PADDR(kern_pgdir));
+
+		tf->tf_esp = (uintptr_t)dststack;
 		tf->tf_eip = (uintptr_t) curenv->env_pgfault_upcall;
+
 		env_run(curenv);
 	}
 
