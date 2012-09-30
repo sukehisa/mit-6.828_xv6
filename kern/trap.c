@@ -118,29 +118,29 @@ trap_init(void)
 	extern void irq15_handler();
 
 			
-	SETGATE(idt[T_DIVIDE], 1, GD_KT, trap_divide, 0);
-	SETGATE(idt[T_DEBUG], 1, GD_KT, trap_debug, 0);
+	SETGATE(idt[T_DIVIDE], 0, GD_KT, trap_divide, 0);
+	SETGATE(idt[T_DEBUG], 0, GD_KT, trap_debug, 0);
 	SETGATE(idt[T_NMI], 0, GD_KT, trap_nmi, 0);
-	SETGATE(idt[T_BRKPT], 1, GD_KT, trap_brkpt, 3);
-	SETGATE(idt[T_OFLOW], 1, GD_KT, trap_oflow, 0);
-	SETGATE(idt[T_BOUND], 1, GD_KT, trap_bound, 0);
-	SETGATE(idt[T_ILLOP], 1, GD_KT, trap_illop, 0);
-	SETGATE(idt[T_DEVICE], 1, GD_KT, trap_device, 0);
-	SETGATE(idt[T_DBLFLT], 1, GD_KT, trap_dblflt, 0);
+	SETGATE(idt[T_BRKPT], 0, GD_KT, trap_brkpt, 3);
+	SETGATE(idt[T_OFLOW], 0, GD_KT, trap_oflow, 0);
+	SETGATE(idt[T_BOUND], 0, GD_KT, trap_bound, 0);
+	SETGATE(idt[T_ILLOP], 0, GD_KT, trap_illop, 0);
+	SETGATE(idt[T_DEVICE], 0, GD_KT, trap_device, 0);
+	SETGATE(idt[T_DBLFLT], 0, GD_KT, trap_dblflt, 0);
 	//SETGATE(idt[T_COPROC], 0, GD_KT, trap_coproc, 0);
-	SETGATE(idt[T_TSS], 1, GD_KT, trap_tss, 0);
-	SETGATE(idt[T_SEGNP], 1, GD_KT, trap_segnp, 0);
-	SETGATE(idt[T_STACK], 1, GD_KT, trap_stack, 0);
-	SETGATE(idt[T_GPFLT], 1, GD_KT, trap_gpflt, 0);
-	SETGATE(idt[T_PGFLT], 1, GD_KT, trap_pgflt, 0);
+	SETGATE(idt[T_TSS], 0, GD_KT, trap_tss, 0);
+	SETGATE(idt[T_SEGNP], 0, GD_KT, trap_segnp, 0);
+	SETGATE(idt[T_STACK], 0, GD_KT, trap_stack, 0);
+	SETGATE(idt[T_GPFLT], 0, GD_KT, trap_gpflt, 0);
+	SETGATE(idt[T_PGFLT], 0, GD_KT, trap_pgflt, 0);
 	//SETGATE(idt[T_RES], 0, GD_KT, trap_res, 0);
-	SETGATE(idt[T_FPERR], 1, GD_KT, trap_fperr, 0);
-	SETGATE(idt[T_ALIGN], 1, GD_KT, trap_align, 0);
-	SETGATE(idt[T_MCHK], 1, GD_KT, trap_mchk, 0);
-	SETGATE(idt[T_SIMDERR], 1, GD_KT, trap_simderr, 0);
+	SETGATE(idt[T_FPERR], 0, GD_KT, trap_fperr, 0);
+	SETGATE(idt[T_ALIGN], 0, GD_KT, trap_align, 0);
+	SETGATE(idt[T_MCHK], 0, GD_KT, trap_mchk, 0);
+	SETGATE(idt[T_SIMDERR], 0, GD_KT, trap_simderr, 0);
 
 	//Initial system call entry
-	SETGATE(idt[T_SYSCALL], 1, GD_KT, trap_syscall, 3);
+	SETGATE(idt[T_SYSCALL], 0, GD_KT, trap_syscall, 3);
 
 	//Initial IRQ handlers
 	SETGATE(idt[IRQ_OFFSET], 0, GD_KT, irq0_handler, 0);
@@ -313,6 +313,17 @@ trap_dispatch(struct Trapframe *tf)
 					tf->tf_regs.reg_edi,
 					tf->tf_regs.reg_esi);
 			break;
+
+		// Handle clock interrupts. Don't forget to acknowledge the
+		// interrupt using lapic_eoi() before calling the scheduler!
+		// LAB 4: Your code here.
+		case IRQ_OFFSET + IRQ_TIMER:
+			cprintf("Timer interrupt on irq 0\n");
+			lapic_eoi();
+			sched_yield();	
+			cprintf("Shouldn't happen..\n");
+			break;
+
 		// Handle spurious interrupts
 		// The hardware sometimes raises these because of noise on the
 		// IRQ line or other reasons. We don't care.
@@ -326,9 +337,6 @@ trap_dispatch(struct Trapframe *tf)
 	}
 
 	return;
-	// Handle clock interrupts. Don't forget to acknowledge the
-	// interrupt using lapic_eoi() before calling the scheduler!
-	// LAB 4: Your code here.
 
 	// Unexpected trap: The user process or the kernel has a bug.
 unexpected:
@@ -358,7 +366,7 @@ trap(struct Trapframe *tf)
 	// the interrupt path.
 	assert(!(read_eflags() & FL_IF));
 
-//	cprintf("**Incoming TRAP frame at %p**\n", tf);
+	cprintf("Incoming TRAP frame at %p\n", tf);
 //	cprintf("errno: %x\n", tf->tf_trapno);
 
 	if ((tf->tf_cs & 3) == 3) {

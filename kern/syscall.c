@@ -57,9 +57,9 @@ sys_env_destroy(envid_t envid)
 	if ((r = envid2env(envid, &e, 1)) < 0)
 		return r;
 	if (e == curenv)
-		cprintf("[%08x] exiting gracefully\n", curenv->env_id);
+		cprintf(".%08x. exiting gracefully\n", curenv->env_id);
 	else
-		cprintf("[%08x] destroying %08x\n", curenv->env_id, e->env_id);
+		cprintf(".%08x. destroying %08x\n", curenv->env_id, e->env_id);
 	env_destroy(e);
 	return 0;
 }
@@ -194,7 +194,8 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 		page_free(page);
 		return -E_INVAL;
 	}
-	if (!(perm ^ PTE_SYSCALL)) {
+	if (!((perm & PTE_U) && (perm & PTE_P) && 
+				((perm | PTE_SYSCALL) == PTE_SYSCALL))) {
 		page_free(page);
 		return -E_INVAL;
 	}
@@ -249,8 +250,10 @@ sys_page_map(envid_t srcenvid, void *srcva,
 		return -E_INVAL;
 	if (!(srcpage = page_lookup(srcenv->env_pgdir, srcva, &entry)))
 		return -E_INVAL;
-	if (!(perm ^ PTE_SYSCALL))
+	if (!((perm & PTE_U) && (perm & PTE_P) && 
+				((perm | PTE_SYSCALL) == PTE_SYSCALL))) {
 		return -E_INVAL;
+	}
 	if ((perm & PTE_W) && !((*entry & PTE_W) == PTE_W))
 		return -E_INVAL;
 	if (page_insert(dstenv->env_pgdir, srcpage, dstva, perm) < 0)
@@ -331,7 +334,41 @@ static int
 sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 {
 	// LAB 4: Your code here.
-	panic("sys_ipc_try_send not implemented");
+	struct Env *target;
+	pte_t *pte;
+	struct Page *page;
+	int r;
+	if ((r = envid2env(envid, &target, 0)) < 0)
+		return -E_BAD_ENV;
+	if (!target->env_ipc_recving)
+		return -E_IPC_NOT_RECV;
+	if ((uintptr_t)srcva < UTOP && (((uintptr_t)srcva % PGSIZE) != 0))
+		return -E_INVAL;
+	if ((uintptr_t)srcva < UTOP && !((perm & PTE_U) && (perm & PTE_P) &&  
+				((perm | PTE_SYSCALL) == PTE_SYSCALL))) 
+		return -E_INVAL;
+	if ((uintptr_t)srcva < UTOP && 
+			!page_lookup(curenv->env_pgdir, srcva, &pte))
+		return -E_INVAL;
+	if ((perm & PTE_W) && (!(*pte & PTE_W) || !(*pte & PTE_U)))
+		return -E_INVAL;
+
+	target->env_ipc_recving = 0;
+	target->env_ipc_from = curenv->env_id;
+	target->env_ipc_value = value;
+	if (((uintptr_t)srcva < UTOP) && ((uintptr_t)target->env_ipc_dstva < UTOP)) {
+		if ((r = sys_page_map(curenv->env_id, srcva, envid, target->env_ipc_dstva, perm)) < 0) {
+			target->env_ipc_perm = 0;
+			return r;
+		}
+		target->env_ipc_perm = perm;
+	} else {
+		target->env_ipc_perm = 0;
+	}
+	target->env_status = ENV_RUNNABLE;
+	
+	return 0;
+//	panic("sys_ipc_try_send not implemented");
 }
 
 // Block until a value is ready.  Record that you want to receive
@@ -349,7 +386,19 @@ static int
 sys_ipc_recv(void *dstva)
 {
 	// LAB 4: Your code here.
-	panic("sys_ipc_recv not implemented");
+	if ((uintptr_t)dstva < UTOP && (((uintptr_t)dstva % PGSIZE) != 0))
+		return -E_INVAL;
+	curenv->env_ipc_recving = 1;
+	if ((uintptr_t)dstva < UTOP)
+		curenv->env_ipc_dstva = dstva;
+	else 
+		curenv->env_ipc_dstva = (void *)UTOP;   // set UTOP as "no page"
+	curenv->env_status = ENV_NOT_RUNNABLE;
+
+	// shouldn't call sys_yield, because of trap call by timer
+//	sys_yield();
+
+//	panic("sys_ipc_recv not implemented");
 	return 0;
 }
 
@@ -357,6 +406,7 @@ sys_ipc_recv(void *dstva)
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
 {
+	int r;
 	// Call the function corresponding to the 'syscallno' parameter.
 	// Return any appropriate return value.
 	// LAB 3: Your code here.
@@ -397,7 +447,11 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			sys_yield();
 			return 0;
 		case SYS_ipc_try_send:
+//			cprintf("[%08x] sys_ipc_try_send\n", curenv->env_id);
+			return sys_ipc_try_send(a1, a2, (void *)a3, a4);
 		case SYS_ipc_recv:
+//			cprintf("[%08x] sys_ipc_recv\n", curenv->env_id);
+			return sys_ipc_recv((void *)a1);
 		case NSYSCALLS: // What's this?? TODO	
 			return -E_INVAL;
 		default:	
