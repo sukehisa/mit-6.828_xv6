@@ -10,7 +10,7 @@
 // When a page fault actually occurs, the kernel switches our ESP to
 // point to the user exception stack if we're not already on the user
 // exception stack, and then it pushes a UTrapframe onto our user
-// exception stack:
+// exception stack:  (we do this at trap.c/page_fault_handler)
 //
 //	trap-time esp
 //	trap-time eflags
@@ -33,7 +33,7 @@
 .globl _pgfault_upcall
 _pgfault_upcall:
 	// Call the C page fault handler.
-	pushl %esp			// function argument: pointer to UTF
+	pushl %esp			// function argument: pointer to UTrapframe
 	movl _pgfault_handler, %eax
 	call *%eax
 	addl $4, %esp			// pop function argument
@@ -46,11 +46,13 @@ _pgfault_upcall:
 	//   We must prepare the trap-time stack for our eventual return to
 	//   re-execute the instruction that faulted.
 	//   Unfortunately, we can't return directly from the exception stack:
+
 	//   We can't call 'jmp', since that requires that we load the address
 	//   into a register, and all registers must have their trap-time
 	//   values after the return.
 	//   We can't call 'ret' from the exception stack either, since if we
 	//   did, %esp would have the wrong value.
+
 	//   So instead, we push the trap-time %eip onto the *trap-time* stack!
 	//   Below we'll switch to that stack and call 'ret', which will
 	//   restore %eip to its pre-fault value.
@@ -65,18 +67,40 @@ _pgfault_upcall:
 	// ways as registers become unavailable as scratch space.
 	//
 	// LAB 4: Your code here.
+	movl %esp, %ebx
 
 	// Restore the trap-time registers.  After you do this, you
 	// can no longer modify any general-purpose registers.
 	// LAB 4: Your code here.
+	// trap-time esp
+	movl 48(%esp), %ecx
+	// trap-time eip
+	movl 40(%esp), %edx 
+	// switch to trap-time esp 
+	movl %ecx, %esp 
+	// push trap-time eip to trap-time stack 
+	pushl %edx 
+	// return to user exception stack 
+	movl %ebx, %esp 
+	// update the trap-time esp stored in exception stack(because of pushed eip
+	subl $4, %ecx
+	movl %ecx, 48(%esp)
+	// restore general registars, ignoring fault_va & err
+	addl $8, %esp
+	popal
 
 	// Restore eflags from the stack.  After you do this, you can
 	// no longer use arithmetic operations or anything else that
 	// modifies eflags.
 	// LAB 4: Your code here.
+	// skipping trap-time eip 
+	addl $4, %esp
+	// restore eflags
+	popfl
 
 	// Switch back to the adjusted trap-time stack.
 	// LAB 4: Your code here.
+	popl %esp
 
 	// Return to re-execute the instruction that faulted.
-	// LAB 4: Your code here.
+	ret

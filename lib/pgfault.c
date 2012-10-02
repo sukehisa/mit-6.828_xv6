@@ -13,6 +13,7 @@ extern void _pgfault_upcall(void);
 // Pointer to currently installed C-language pgfault handler.
 void (*_pgfault_handler)(struct UTrapframe *utf);
 
+
 //
 // Set the page fault handler function.
 // If there isn't one yet, _pgfault_handler will be 0.
@@ -29,9 +30,13 @@ set_pgfault_handler(void (*handler)(struct UTrapframe *utf))
 	if (_pgfault_handler == 0) {
 		// First time through!
 		// LAB 4: Your code here.
-		panic("set_pgfault_handler not implemented");
+		sys_page_alloc(sys_getenvid(), (void *)(UXSTACKTOP-PGSIZE), PTE_W | PTE_U | PTE_P);
+		sys_env_set_pgfault_upcall(sys_getenvid(), _pgfault_upcall);		
+//		panic("set_pgfault_handler not implemented");
 	}
 
 	// Save handler pointer for assembly to call.
 	_pgfault_handler = handler;
+	cprintf("_pgfault_upcall: %08x\n", thisenv->env_pgfault_upcall);
+	cprintf("_pgfault_handler is %08x\n", _pgfault_handler);
 }

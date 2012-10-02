@@ -14,6 +14,7 @@ umain(int argc, char **argv)
 	// to cause the processor to stop executing until the next interrupt -
 	// doing so allows the processor to conserve power more effectively.
 	while (1) {
+		cprintf("**user_idle**\n");
 		sys_yield();
 	}
 }

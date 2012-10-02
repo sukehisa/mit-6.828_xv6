@@ -24,7 +24,7 @@ void	env_pop_tf(struct Trapframe *tf) __attribute__((noreturn));
 
 // Without this extra macro, we couldn't pass macros like TEST to
 // ENV_CREATE because of the C pre-processor's argument prescan rule.
-#define ENV_PASTE3(x, y, z) x ## y ## z
+#define ENV_PASTE3(x, y, z) x ## y ## z    //concatenating
 
 #define ENV_CREATE(x, type)						\
 	do {								\
