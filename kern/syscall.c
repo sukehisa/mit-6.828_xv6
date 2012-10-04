@@ -258,10 +258,13 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	struct Env *srcenv, *dstenv;
 	struct Page *srcpage;
 	pte_t *entry;
-	if (envid2env(srcenvid, &srcenv, 1) < 0)
+	if (envid2env(srcenvid, &srcenv, 1) < 0) {
 		return -E_BAD_ENV;
-	if (envid2env(dstenvid, &dstenv, 1) < 0)
+	}
+	//^&^ I had problem here... 3rd param should be 0
+	if (envid2env(dstenvid, &dstenv, 0) < 0) {
 		return -E_BAD_ENV;
+	}
 
 	if ((uint32_t)srcva > UTOP || ((uint32_t)srcva % PGSIZE) ||
 			(uint32_t)dstva > UTOP || ((uint32_t)dstva % PGSIZE))
@@ -356,10 +359,12 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	pte_t *pte;
 	struct Page *page;
 	int r;
-	if ((r = envid2env(envid, &target, 0)) < 0)
+	if ((r = envid2env(envid, &target, 0)) < 0) {
 		return -E_BAD_ENV;
+	}
 	if (!target->env_ipc_recving)
 		return -E_IPC_NOT_RECV;
+
 	if ((uintptr_t)srcva < UTOP && (((uintptr_t)srcva % PGSIZE) != 0))
 		return -E_INVAL;
 	if ((uintptr_t)srcva < UTOP && !((perm & PTE_U) && (perm & PTE_P) &&  
@@ -386,7 +391,6 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	target->env_status = ENV_RUNNABLE;
 	
 	return 0;
-//	panic("sys_ipc_try_send not implemented");
 }
 
 // Block until a value is ready.  Record that you want to receive

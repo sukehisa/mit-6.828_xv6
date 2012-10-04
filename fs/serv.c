@@ -193,10 +193,11 @@ serve_set_size(envid_t envid, struct Fsreq_set_size *req)
 	return file_set_size(o->o_file, req->req_size);
 }
 
-// Read at most ipc->read.req_n bytes from the current seek position
-// in ipc->read.req_fileid.  Return the bytes read from the file to
-// the caller in ipc->readRet, then update the seek position.  Returns
-// the number of bytes successfully read, or < 0 on error.
+// Read at most ipc->read.req_n bytes 
+// from the current seek position in ipc->read.req_fileid.  
+// Return the bytes read from the file to
+// the caller in ipc->readRet, then update the seek position.  
+// Returns the number of bytes successfully read, or < 0 on error.
 int
 serve_read(envid_t envid, union Fsipc *ipc)
 {
@@ -207,15 +208,29 @@ serve_read(envid_t envid, union Fsipc *ipc)
 		cprintf("serve_read %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
 	// Look up the file id, read the bytes into 'ret', and update
-	// the seek position.  Be careful if req->req_n > PGSIZE
+	// the seek position.  
+	//
+	// Be careful if req->req_n > PGSIZE
 	// (remember that read is always allowed to return fewer bytes
-	// than requested).  Also, be careful because ipc is a union,
+	// than requested).  
+	// Also, be careful because ipc is a union,
 	// so filling in ret will overwrite req.
 	//
 	// Hint: Use file_read.
 	// Hint: The seek position is stored in the struct Fd.
 	// LAB 5: Your code here
-	panic("serve_read not implemented");
+	struct OpenFile *of;
+	int r;
+	if ((r = openfile_lookup(envid, req->req_fileid, &of)) < 0) {
+		cprintf("serve_read: failed to lookup open file\n");
+		return r;
+	}
+	if ((r = file_read(of->o_file, (void *)ret->ret_buf, 
+				       MIN(req->req_n, PGSIZE),  of->o_fd->fd_offset)) < 0)
+		return r;
+	
+	of->o_fd->fd_offset += r;
+	return r;
 }
 
 // Write req->req_n bytes from req->req_buf to req_fileid, starting at

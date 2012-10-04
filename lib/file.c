@@ -16,8 +16,10 @@ static int
 fsipc(unsigned type, void *dstva)
 {
 	static envid_t fsenv;
-	if (fsenv == 0)
+	if (fsenv == 0) {
 		fsenv = ipc_find_env(ENV_TYPE_FS);
+	}
+	cprintf("fsenv[%08x]\n", fsenv);
 
 	static_assert(sizeof(fsipcbuf) == PGSIZE);
 
@@ -96,11 +98,20 @@ static ssize_t
 devfile_read(struct Fd *fd, void *buf, size_t n)
 {
 	// Make an FSREQ_READ request to the file system server after
-	// filling fsipcbuf.read with the request arguments.  The
-	// bytes read will be written back to fsipcbuf by the file
+	// filling fsipcbuf.read with the request arguments.  
+	// The bytes read will be written back to fsipcbuf by the file
 	// system server.
 	// LAB 5: Your code here
-	panic("devfile_read not implemented");
+	int r;
+	fsipcbuf.read.req_fileid = fd->fd_file.id;
+	fsipcbuf.read.req_n = n;
+
+	cprintf("HOGEEEEEEEEEE\n");
+	if ((r = fsipc(FSREQ_READ, NULL)) < 0)
+		return r;
+
+	memmove(buf, fsipcbuf.readRet.ret_buf, r);
+	return r;
 }
 
 // Write at most 'n' bytes from 'buf' to 'fd' at the current seek position.
