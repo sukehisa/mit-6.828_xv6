@@ -48,8 +48,17 @@ bc_pgfault(struct UTrapframe *utf)
 	// page not-dirty (since reading the data from disk will mark
 	// the page dirty).
 	//
-	// LAB 5: Your code here
-	panic("bc_pgfault not implemented");
+	// LAB 5: Your code here 
+	void *blkaddr = ROUNDDOWN(addr, PGSIZE);
+	if (sys_page_alloc(thisenv->env_id, blkaddr,  PTE_SYSCALL) < 0)
+		panic("bc_pgfault: can not allocate new page\n");
+	if (ide_read(blockno*BLKSECTS, blkaddr,  BLKSECTS) < 0)
+		panic("bc_pgfault: failed to read block from disk\n");	
+    if (sys_page_map(thisenv->env_id, blkaddr, 
+				     thisenv->env_id, blkaddr, PTE_SYSCALL) < 0)
+       panic("bc_pgfault: failed to mark disk page as non dirty\n");
+
+	//panic("bc_pgfault not implemented");
 
 	// Check that the block we read was allocated. (exercise for
 	// the reader: why do we do this *after* reading the block
@@ -74,7 +83,16 @@ flush_block(void *addr)
 		panic("flush_block of bad va %08x", addr);
 
 	// LAB 5: Your code here.
-	panic("flush_block not implemented");
+	void *blkaddr = ROUNDDOWN(addr, PGSIZE);
+	if (va_is_mapped(addr) && va_is_dirty(addr)) {
+		if (ide_write(blockno*BLKSECTS, blkaddr, BLKSECTS) < 0)
+			panic("flush_block: failed to write a block to disk\n");
+		if (sys_page_map(thisenv->env_id, blkaddr, 
+					     thisenv->env_id, blkaddr, PTE_SYSCALL) < 0)
+			panic("flush_block: failed to mark disk page as non dirty\n");
+	}
+
+	//panic("flush_block not implemented");
 }
 
 // Test that the block cache works, by smashing the superblock and

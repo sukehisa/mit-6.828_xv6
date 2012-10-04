@@ -606,32 +606,6 @@ SUCCESS:
 	return 0;
 }
 
-
-//// TODO: This is copied from someone's code, fix mine...
-//int
-//page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm)
-//{
-//	pte_t *pte = pgdir_walk(pgdir, va, 0);
-//    physaddr_t ppa = page2pa(pp);
-//
-//    if (pte != NULL) {
-//        // for page alreay mapped
-//        if (*pte & PTE_P)
-//            page_remove(pgdir, va); // also invalidates tlb
-//        if (page_free_list == pp) 
-//            page_free_list = page_free_list->pp_link; 
-//    } else {
-//	    pte = pgdir_walk(pgdir, va, 1);
-//	    if (!pte)
-//		    return -E_NO_MEM;
-//    }
-//	*pte = page2pa(pp) | perm | PTE_P;
-//	pp->pp_ref++;
-//    tlb_invalidate(pgdir, va);
-//	return 0;
-//}
-
-
 //
 // Return the page mapped at virtual address 'va'.
 // If pte_store is not zero, then we store in it the address

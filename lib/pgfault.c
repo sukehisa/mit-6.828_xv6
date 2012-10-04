@@ -37,6 +37,6 @@ set_pgfault_handler(void (*handler)(struct UTrapframe *utf))
 
 	// Save handler pointer for assembly to call.
 	_pgfault_handler = handler;
-	cprintf("_pgfault_upcall: %08x\n", thisenv->env_pgfault_upcall);
-	cprintf("_pgfault_handler is %08x\n", _pgfault_handler);
+//	cprintf("_pgfault_upcall: %08x\n", thisenv->env_pgfault_upcall);
+//	cprintf("_pgfault_handler is %08x\n", _pgfault_handler);
 }
