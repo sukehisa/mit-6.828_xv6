@@ -314,6 +314,7 @@ region_alloc(struct Env *e, void *va, size_t len)
 		assert(ptbl_entry != NULL);
 		if (*ptbl_entry == 0) {
 			struct Page *newpage = page_alloc(0);
+			newpage->pp_ref++;
 			assert(newpage != NULL);
 			*ptbl_entry = page2pa(newpage) | PTE_W | PTE_U | PTE_P;
 		}
