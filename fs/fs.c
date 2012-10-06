@@ -61,7 +61,19 @@ alloc_block(void)
 	// super->s_nblocks blocks in the disk altogether.
 
 	// LAB 5: Your code here.
-	panic("alloc_block not implemented");
+	int i, j;
+	for (i = 0; i < super->s_nblocks; i++) {
+		int word = bitmap[i/32];
+		int shift = i % 32;
+		int match = 0x1 << shift;
+		if (word & match) {
+			bitmap[i/32] &= ~match;
+			flush_block(diskaddr(i));
+			return i;
+		}
+	}
+
+//	panic("alloc_block not implemented");
 	return -E_NO_DISK;
 }
 
@@ -132,7 +144,26 @@ static int
 file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool alloc)
 {
 	// LAB 5: Your code here.
-	panic("file_block_walk not implemented");
+	if (filebno >= (NDIRECT+NINDIRECT))
+		return -E_INVAL;
+	if (filebno < NDIRECT) {
+		*ppdiskbno = &f->f_direct[filebno];
+	} else {
+		if (!f->f_indirect) {
+			if (alloc) {
+				int blkno;
+				if ((blkno = alloc_block()) < 0)
+					return -E_NO_DISK; 
+				f->f_indirect = blkno;
+				memset(diskaddr(blkno), 0, BLKSIZE);
+			} else 
+				return -E_NOT_FOUND;
+		}
+		*ppdiskbno = &((int *)diskaddr(f->f_indirect))[filebno-NDIRECT];
+	}
+	return 0;
+
+	//panic("file_block_walk not implemented");
 }
 
 // Set *blk to the address in memory where the filebno'th
@@ -144,11 +175,24 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
 //	-E_INVAL if filebno is out of range.
 //
 // Hint: Use file_block_walk and alloc_block.
+//^&^ entry in struct File contains block number, not addr of that block...
 int
 file_get_block(struct File *f, uint32_t filebno, char **blk)
 {
 	// LAB 5: Your code here.
-	panic("file_get_block not implemented");
+	uint32_t *ppdiskbno;
+	int r;
+	if ((r = file_block_walk(f, filebno, &ppdiskbno, 1)) < 0)
+		return r;
+	if (!*ppdiskbno) {
+		int blkno = alloc_block();
+		if (blkno < 0)
+			return -E_NO_DISK;
+		*ppdiskbno = blkno;
+	}
+	*blk = (char *) diskaddr(*ppdiskbno);
+	return 0;
+//	panic("file_get_block not implemented");
 }
 
 // Try to find a file named "name" in dir.  If so, set *file to it.
@@ -325,8 +369,9 @@ file_read(struct File *f, void *buf, size_t count, off_t offset)
 	count = MIN(count, f->f_size - offset);
 
 	for (pos = offset; pos < offset + count; ) {
-		if ((r = file_get_block(f, pos / BLKSIZE, &blk)) < 0)
+		if ((r = file_get_block(f, pos / BLKSIZE, &blk)) < 0) {
 			return r;
+		}
 		bn = MIN(BLKSIZE - pos % BLKSIZE, offset + count - pos);
 		memmove(buf, blk + pos % BLKSIZE, bn);
 		pos += bn;

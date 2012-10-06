@@ -22,6 +22,7 @@ umain(int argc, char **argv)
 	}
 }
 
+/// dstenv: child's envid
 void
 duppage(envid_t dstenv, void *addr)
 {
@@ -58,6 +59,7 @@ dumbfork(void)
 		// The copied value of the global variable 'thisenv'
 		// is no longer valid (it refers to the parent!).
 		// Fix it and return 0.
+		cprintf("I'm child\n");
 		thisenv = &envs[ENVX(sys_getenvid())];
 		return 0;
 	}

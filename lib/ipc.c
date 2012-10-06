@@ -23,9 +23,29 @@ int32_t
 ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 {
 	// LAB 4: Your code here.
-	panic("ipc_recv not implemented");
-	return 0;
+	int r;
+	if (pg == NULL)
+		pg = (void *) UTOP; // UTOP as "no page"
+	if ((r = sys_ipc_recv(pg)) < 0) {
+		if (from_env_store)
+			*from_env_store = 0;
+		if (perm_store)
+			*perm_store = 0;
+		return r;
+	}
+
+	if (from_env_store)
+		*from_env_store = thisenv->env_ipc_from;
+	if (perm_store && thisenv->env_ipc_perm != 0) {
+		*perm_store = thisenv->env_ipc_perm;
+//		sys_page_map(thisenv->env_id, pg, thisenv->env_id, pg, *perm_store);
+	}	
+
+	return thisenv->env_ipc_value;
 }
+
+
+
 
 // Send 'val' (and 'pg' with 'perm', if 'pg' is nonnull) to 'toenv'.
 // This function keeps trying until it succeeds.
@@ -35,11 +55,27 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 //   Use sys_yield() to be CPU-friendly.
 //   If 'pg' is null, pass sys_ipc_recv a value that it will understand
 //   as meaning "no page".  (Zero is not the right value.)
+//   -> UTOP as "no page"
 void
 ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 {
 	// LAB 4: Your code here.
-	panic("ipc_send not implemented");
+	int r;
+	while (1) {
+		if (pg)
+			r = sys_ipc_try_send(to_env, val, pg, perm);
+		else 
+			r = sys_ipc_try_send(to_env, val, (void *)UTOP, 0);
+
+		if (r == 0) 
+			break;
+		
+		if (r != -E_IPC_NOT_RECV) {
+			panic("sys_ipc_try_send:unexpected err, %e", r);
+		}
+		sys_yield();
+	}
+//	panic("ipc_send not implemented");
 }
 
 // Find the first environment of the given type.  We'll use this to

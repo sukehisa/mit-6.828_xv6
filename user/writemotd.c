@@ -11,7 +11,7 @@ umain(int argc, char **argv)
 		panic("open /newmotd: %e", rfd);
 	if ((wfd = open("/motd", O_RDWR)) < 0)
 		panic("open /motd: %e", wfd);
-	cprintf("file descriptors %d %d\n", rfd, wfd);
+
 	if (rfd == wfd)
 		panic("open /newmotd and /motd give same file descriptor");
 
@@ -20,6 +20,8 @@ umain(int argc, char **argv)
 		sys_cputs(buf, n);
 	cprintf("===\n");
 	seek(wfd, 0);
+
+	//DEBUG reaches here.
 
 	if ((r = ftruncate(wfd, 0)) < 0)
 		panic("truncate /motd: %e", r);

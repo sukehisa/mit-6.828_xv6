@@ -23,7 +23,8 @@ static void boot_aps(void);
 void
 i386_init(void)
 {
-	extern char edata[], end[];
+	// edata: end of data section, end: end of bss section
+	extern char edata[], end[];   // defined in kernel.ld
 
 	// Before doing anything else, complete the ELF loading process.
 	// Clear the uninitialized global data (BSS) section of our program.
@@ -34,7 +35,7 @@ i386_init(void)
 	// Can't call cprintf until after we do this!
 	cons_init();
 
-	cprintf("6828 decimal is %o octal!\n", 6828);
+	cprintf("16 decimal is %o octal!\n", 16);
 
 	// Lab 2 memory management initialization functions
 	mem_init();
@@ -44,8 +45,8 @@ i386_init(void)
 	trap_init();
 
 	// Lab 4 multiprocessor initialization functions
-	mp_init();
-	lapic_init();
+	mp_init();         // collect information about the multiprocessor system
+	lapic_init();      // initialize lapic & enable LAPIC build-in timer for preemptive multitasking
 
 	// Lab 4 multitasking initialization functions
 	pic_init();
@@ -56,8 +57,9 @@ i386_init(void)
 
 	// Acquire the big kernel lock before waking up APs
 	// Your code here:
+	lock_kernel();
 
-	// Starting non-boot CPUs
+	// Starting non-boot CPUs	
 	boot_aps();
 
 	// Should always have idle processes at first.
@@ -77,6 +79,7 @@ i386_init(void)
 	// Don't touch -- used by grading script!
 	ENV_CREATE(TEST, ENV_TYPE_USER);
 #else
+	ENV_CREATE(user_icode, ENV_TYPE_USER);
 	// Touch all you want.
 	// ENV_CREATE(net_testoutput, ENV_TYPE_USER);
 	// ENV_CREATE(user_echosrv, ENV_TYPE_USER);
@@ -93,6 +96,8 @@ i386_init(void)
 void *mpentry_kstack;
 
 // Start the non-boot (AP) processors.
+/// starts in real mode
+/// copies AP entry code(kern/mpentry.S) to memory location addressable in real-mode 
 static void
 boot_aps(void)
 {
@@ -137,9 +142,12 @@ mp_main(void)
 	// only one CPU can enter the scheduler at a time!
 	//
 	// Your code here:
+	lock_kernel();
+	sched_yield();
+//	unlock_kernel();
 
 	// Remove this after you finish Exercise 4
-	for (;;);
+//	for (;;);
 }
 
 /*

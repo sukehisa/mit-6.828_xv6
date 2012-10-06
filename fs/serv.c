@@ -193,10 +193,11 @@ serve_set_size(envid_t envid, struct Fsreq_set_size *req)
 	return file_set_size(o->o_file, req->req_size);
 }
 
-// Read at most ipc->read.req_n bytes from the current seek position
-// in ipc->read.req_fileid.  Return the bytes read from the file to
-// the caller in ipc->readRet, then update the seek position.  Returns
-// the number of bytes successfully read, or < 0 on error.
+// Read at most ipc->read.req_n bytes 
+// from the current seek position in ipc->read.req_fileid.  
+// Return the bytes read from the file to
+// the caller in ipc->readRet, then update the seek position.  
+// Returns the number of bytes successfully read, or < 0 on error.
 int
 serve_read(envid_t envid, union Fsipc *ipc)
 {
@@ -204,18 +205,35 @@ serve_read(envid_t envid, union Fsipc *ipc)
 	struct Fsret_read *ret = &ipc->readRet;
 
 	if (debug)
-		cprintf("serve_read %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
+		cprintf("serve_read %08x %d %d\n", envid, req->req_fileid, req->req_n);
 
 	// Look up the file id, read the bytes into 'ret', and update
-	// the seek position.  Be careful if req->req_n > PGSIZE
+	// the seek position.  
+	//
+	// Be careful if req->req_n > PGSIZE
 	// (remember that read is always allowed to return fewer bytes
-	// than requested).  Also, be careful because ipc is a union,
+	// than requested).  
+	// Also, be careful because ipc is a union,
 	// so filling in ret will overwrite req.
 	//
 	// Hint: Use file_read.
 	// Hint: The seek position is stored in the struct Fd.
 	// LAB 5: Your code here
-	panic("serve_read not implemented");
+	
+	struct OpenFile *of;
+	int r;
+
+	if ((r = openfile_lookup(envid, req->req_fileid, &of)) < 0) {
+		cprintf("serve_read: failed to lookup open file\n");
+		return r;
+	}
+
+	if ((r = file_read(of->o_file, (void *)ret->ret_buf, 
+				       MIN(req->req_n, PGSIZE),  of->o_fd->fd_offset)) < 0)
+		return r;
+	
+	of->o_fd->fd_offset += r;
+	return r;
 }
 
 // Write req->req_n bytes from req->req_buf to req_fileid, starting at
@@ -229,7 +247,18 @@ serve_write(envid_t envid, struct Fsreq_write *req)
 		cprintf("serve_write %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
 	// LAB 5: Your code here.
-	panic("serve_write not implemented");
+	struct OpenFile *of;
+	int r;
+	if ((r = openfile_lookup(envid, req->req_fileid, &of)) < 0) {
+		cprintf("serve_write: failed to lookup open file\n");
+		return r;
+	}
+	if ((r = file_write(of->o_file, (void *)req->req_buf, req->req_n,  
+					    of->o_fd->fd_offset)) < 0)
+		return r;
+	
+	of->o_fd->fd_offset += r;
+	return r;
 }
 
 // Stat ipc->stat.req_fileid.  Return the file's struct Stat to the
@@ -323,7 +352,8 @@ serve(void)
 
 	while (1) {
 		perm = 0;
-		req = ipc_recv((int32_t *) &whom, fsreq, &perm);
+		req = ipc_recv((int32_t *) &whom, fsreq, &perm);	
+
 		if (debug)
 			cprintf("fs req %d from %08x [page %08x: %s]\n",
 				req, whom, vpt[PGNUM(fsreq)], fsreq);
@@ -344,6 +374,7 @@ serve(void)
 			cprintf("Invalid request code %d from %08x\n", whom, req);
 			r = -E_INVAL;
 		}
+
 		ipc_send(whom, r, pg, perm);
 		sys_page_unmap(0, fsreq);
 	}
