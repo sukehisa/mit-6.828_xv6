@@ -81,6 +81,7 @@ fd_lookup(int fdnum, struct Fd **fd_store)
 		return -E_INVAL;
 	}
 	fd = INDEX2FD(fdnum);
+	///^&^ making sure fd page exists
 	if (!(vpd[PDX(fd)] & PTE_P) || !(vpt[PGNUM(fd)] & PTE_P)) {
 		if (debug)
 			cprintf("[%08x] closed fd %d\n", thisenv->env_id, fd);
@@ -273,8 +274,10 @@ ftruncate(int fdnum, off_t newsize)
 	struct Dev *dev;
 	struct Fd *fd;
 	if ((r = fd_lookup(fdnum, &fd)) < 0
-	    || (r = dev_lookup(fd->fd_dev_id, &dev)) < 0)
+	    || (r = dev_lookup(fd->fd_dev_id, &dev)) < 0) 
 		return r;
+	
+
 	if ((fd->fd_omode & O_ACCMODE) == O_RDONLY) {
 		cprintf("[%08x] ftruncate %d -- bad mode\n",
 			thisenv->env_id, fdnum);

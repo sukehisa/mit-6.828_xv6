@@ -154,11 +154,12 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
 				int blkno;
 				if ((blkno = alloc_block()) < 0)
 					return -E_NO_DISK; 
-				f->f_indirect = (uint32_t)diskaddr(blkno);
+				f->f_indirect = blkno;
+				memset(diskaddr(blkno), 0, BLKSIZE);
 			} else 
 				return -E_NOT_FOUND;
 		}
-		*ppdiskbno = &((int *)f->f_indirect)[filebno-NDIRECT];
+		*ppdiskbno = &((int *)diskaddr(f->f_indirect))[filebno-NDIRECT];
 	}
 	return 0;
 
@@ -368,8 +369,9 @@ file_read(struct File *f, void *buf, size_t count, off_t offset)
 	count = MIN(count, f->f_size - offset);
 
 	for (pos = offset; pos < offset + count; ) {
-		if ((r = file_get_block(f, pos / BLKSIZE, &blk)) < 0)
+		if ((r = file_get_block(f, pos / BLKSIZE, &blk)) < 0) {
 			return r;
+		}
 		bn = MIN(BLKSIZE - pos % BLKSIZE, offset + count - pos);
 		memmove(buf, blk + pos % BLKSIZE, bn);
 		pos += bn;

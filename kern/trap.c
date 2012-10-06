@@ -417,7 +417,7 @@ page_fault_handler(struct Trapframe *tf)
 	fault_va = rcr2();
 
 	// LAB 3: Your code here.
-	cprintf("\n[%08x]In page_fault_handler! fault_va:%08x\n", curenv->env_id, fault_va);
+//	cprintf("\n[%08x]In page_fault_handler! fault_va:%08x\n", curenv->env_id, fault_va);
 	//user_mem_assert(curenv, (void *)fault_va, PGSIZE, PTE_P); //What's this??ToDo
 
 	// Handle kernel-mode page faults.
@@ -462,7 +462,7 @@ page_fault_handler(struct Trapframe *tf)
 
 	// LAB 4: Your code here.
 	if (curenv->env_pgfault_upcall) {	
-		cprintf("upcall found\n"); //deb
+	//	cprintf("upcall found\n"); //deb
 		// some checkings
 		user_mem_assert(curenv, (void *)(UXSTACKTOP-PGSIZE), PGSIZE, PTE_W);
 		if (!page_lookup(curenv->env_pgdir, (void *)(UXSTACKTOP-PGSIZE), NULL))

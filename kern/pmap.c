@@ -405,6 +405,8 @@ page_alloc(int alloc_flags)
 //		else {                                          
 //			memset(page2kva(allocating_page), 0, PGSIZE);   //TODO: irrelevant?
 //		}	
+
+
 		return allocating_page;
 	} else {
 		return NULL;
@@ -537,74 +539,39 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 // Hint: The TA solution is implemented using pgdir_walk, page_remove,
 // and page2pa.
 //
-//int
-//page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm)
-//{
-//	// Fill this function in	
-//	pde_t *pgdir_entry = &pgdir[PDX(va)];
-//	if (*pgdir_entry) {
-//		pte_t *ptbl_entry = &((pte_t *)(KADDR(PTE_ADDR(*pgdir_entry))))[PTX(va)];
-//		if (*ptbl_entry) {  // already page mapped at va
-//			if (PTE_ADDR(*ptbl_entry) == page2pa(pp)) { 
-//				*ptbl_entry = (pte_t) page2pa(pp) | PTE_P | perm; 
-//				*pgdir_entry = PTE_ADDR(*pgdir_entry) | PTE_P | perm;
-//				return 0;
-//			}
-//			page_remove(pgdir, va); 
-//		}
-//		*ptbl_entry = (pte_t) page2pa(pp) | PTE_P | perm; 
-//	} else {
-//		struct Page *newpage_table = page_alloc(0); //for pgdir entry
-//		if (!newpage_table) {
-//			return -E_NO_MEM;
-//		}
-//		memset(page2kva(newpage_table), 0, PGSIZE);
-//		(newpage_table->pp_ref)++;
-//		pgdir[PDX(va)] = (pde_t) page2pa(newpage_table) | PTE_P | perm; 
-//		pte_t *entry = pgdir_walk(pgdir, va, 0);
-//		*entry = (pte_t)page2pa(pp) | PTE_P | perm;
-////		((pte_t *)(page2kva(newpage_table)) )[PTX(va)] = (pte_t)page2pa(pp) | PTE_P | perm;
-//	}
-//	(pp->pp_ref)++;
-//	return 0;
-//}
-
-
 int
 page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm)
 {
-	assert(pgdir);
-	assert(pp);
-
-	// Fill this function in
-	pte_t *pte = pgdir_walk(pgdir, va, 1);
-	if (!pte)
-		return -E_NO_MEM;
-
-	physaddr_t pa = page2pa(pp);
-
-	// Already exist, remove it!
-	if (*pte & PTE_P) {
-		// Same map reinsertion, ONLY permission needs change.
-		if (PTE_ADDR(*pte) == pa)
-			goto SUCCESS;
-
-		// Different map insertion, so remove the old one.
-		page_remove(pgdir, va);
+	// Fill this function in	
+	pde_t *pgdir_entry = &pgdir[PDX(va)];
+	if (*pgdir_entry) {
+		pte_t *ptbl_entry = &((pte_t *)(KADDR(PTE_ADDR(*pgdir_entry))))[PTX(va)];
+		if (*ptbl_entry) {  // already page mapped at va
+			if (PTE_ADDR(*ptbl_entry) == page2pa(pp)) { 
+				*ptbl_entry = (pte_t) page2pa(pp) | PTE_P | perm; 
+				*pgdir_entry = PTE_ADDR(*pgdir_entry) | PTE_P | perm;
+				return 0;
+			}
+			page_remove(pgdir, va); 
+		}
+		*ptbl_entry = (pte_t) page2pa(pp) | PTE_P | perm; 
+	} else {
+		struct Page *newpage_table = page_alloc(0); //for pgdir entry
+		if (!newpage_table) {
+			return -E_NO_MEM;
+		}
+		memset(page2kva(newpage_table), 0, PGSIZE);
+		(newpage_table->pp_ref)++;
+		pgdir[PDX(va)] = (pde_t) page2pa(newpage_table) | PTE_P | perm; 
+		pte_t *entry = pgdir_walk(pgdir, va, 0);
+		*entry = (pte_t)page2pa(pp) | PTE_P | perm;
+//		((pte_t *)(page2kva(newpage_table)) )[PTX(va)] = (pte_t)page2pa(pp) | PTE_P | perm;
 	}
-
-	// Add refcount.
-	pp->pp_ref++;
-
-	// Cached
-	tlb_invalidate(pgdir, va);
-
-SUCCESS:
-	// Set PTE with new permissions.
-	*pte = pa | perm | PTE_P;
+	(pp->pp_ref)++;
 
 	return 0;
 }
+
 
 //
 // Return the page mapped at virtual address 'va'.
@@ -655,6 +622,7 @@ page_remove(pde_t *pgdir, void *va)
 
 	tlb_invalidate(pgdir, va);
 	struct Page *page = pa2page(PTE_ADDR(*entry));
+
 	page_decref(page);
 	*entry = 0;
 }

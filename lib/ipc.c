@@ -33,15 +33,19 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 			*perm_store = 0;
 		return r;
 	}
+
 	if (from_env_store)
 		*from_env_store = thisenv->env_ipc_from;
 	if (perm_store && thisenv->env_ipc_perm != 0) {
 		*perm_store = thisenv->env_ipc_perm;
 //		sys_page_map(thisenv->env_id, pg, thisenv->env_id, pg, *perm_store);
 	}	
-//	panic("ipc_recv not implemented");
+
 	return thisenv->env_ipc_value;
 }
+
+
+
 
 // Send 'val' (and 'pg' with 'perm', if 'pg' is nonnull) to 'toenv'.
 // This function keeps trying until it succeeds.
@@ -63,7 +67,9 @@ ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 		else 
 			r = sys_ipc_try_send(to_env, val, (void *)UTOP, 0);
 
-		if (r == 0) break;
+		if (r == 0) 
+			break;
+		
 		if (r != -E_IPC_NOT_RECV) {
 			panic("sys_ipc_try_send:unexpected err, %e", r);
 		}
